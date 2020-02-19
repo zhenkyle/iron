@@ -1,20 +1,31 @@
-#![no_std]
+//! examples/init.rs
+
+#![deny(unsafe_code)]
+#![deny(warnings)]
 #![no_main]
-extern crate stm32f3;
-// pick a panicking behavior
-extern crate panic_halt; // you can put a breakpoint on `rust_begin_unwind` to catch panics
-// extern crate panic_abort; // requires nightly
-// extern crate panic_itm; // logs messages over ITM; requires ITM support
-// extern crate panic_semihosting; // logs messages to the host stderr; requires a debugger
+#![no_std]
 
-use cortex_m::asm;
-use cortex_m_rt::entry;
+use cortex_m_semihosting::{hprintln};
+use stm32f3::stm32f303 as stm32;
+use panic_semihosting as _;
 
-#[entry]
-fn main() -> ! {
-    asm::nop(); // To not have main optimize to abort in release mode, remove when you add code
+#[rtfm::app(device = stm32f3::stm32f303, peripherals = true)]
+const APP: () = {
+    #[init]
+    fn init(cx: init::Context) {
+        static mut X: u32 = 0;
 
-    loop {
-        // your code goes here
+        // Cortex-M peripherals
+        let _core: cortex_m::Peripherals = cx.core;
+
+        // Device specific peripherals
+        let _device: stm32::Peripherals = cx.device;
+
+        // Safe access to local `static mut` variable
+        let _x: &'static mut u32 = X;
+
+        hprintln!("init").unwrap();
+
+        loop {}
     }
-}
+};
