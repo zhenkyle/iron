@@ -1,11 +1,9 @@
-//! examples/init.rs
-
 #![deny(unsafe_code)]
 #![deny(warnings)]
 #![no_main]
 #![no_std]
 
-
+//use cortex_m::asm;
 use cortex_m_rt::{exception, ExceptionFrame};
 use cortex_m_semihosting::{hprintln};
 use panic_semihosting as _;
@@ -22,8 +20,12 @@ use ssd1306::Builder;
 
 #[rtfm::app(device = stm32f3xx_hal::stm32, peripherals = true)]
 const APP: () = {
+    struct Resources {
+        disp: GraphicsMode<SpiInterface<stm32f3xx_hal::spi::Spi<stm32f3xx_hal::stm32::SPI1, (stm32f3xx_hal::gpio::gpioa::PA5<stm32f3xx_hal::gpio::AF5>, stm32f3xx_hal::gpio::gpioa::PA6<stm32f3xx_hal::gpio::AF5>, stm32f3xx_hal::gpio::gpioa::PA7<stm32f3xx_hal::gpio::AF5>)>, stm32f3xx_hal::gpio::gpiob::PB1<stm32f3xx_hal::gpio::Output<stm32f3xx_hal::gpio::PushPull>>>>,
+    }
+    
     #[init(spawn =[draw_things])]
-    fn init(cx: init::Context) {
+    fn init(cx: init::Context) -> init::LateResources {
         static mut X: u32 = 0;
 
         // Cortex-M peripherals
@@ -61,11 +63,36 @@ const APP: () = {
         let dc = gpiob.pb1.into_push_pull_output(&mut gpiob.moder, &mut gpiob.otyper);
         let mut disp: GraphicsMode<_> = Builder::new().connect_spi(spi, dc).into();
 
-        let mut delay = Delay::new(cp.SYST, clocks);        
+        let mut delay = Delay::new(cp.SYST, clocks);
         disp.reset(&mut rst, &mut delay).unwrap();
         
         disp.init().unwrap();
         disp.flush().unwrap();
+
+        // Safe access to local `static mut` variable
+        let _x: &'static mut u32 = X;
+        cx.spawn.draw_things().unwrap();
+        hprintln!("init").unwrap();
+        init::LateResources {
+            disp,
+        }
+    }
+
+    // Optional.
+    //
+    // https://rtfm.rs/0.5/book/en/by-example/app.html#idle
+    // > When no idle function is declared, the runtime sets the SLEEPONEXIT bit and then
+    // > sends the microcontroller to sleep after running init.
+    #[idle]
+    fn idle(_cx: idle::Context) -> ! {
+        loop {
+            cortex_m::asm::wfi();
+        }
+    }
+
+    #[task(resources = [disp])]
+    fn draw_things(cx: draw_things::Context) {
+        let disp = cx.resources.disp;
 
         let style = PrimitiveStyleBuilder::new()
             .stroke_width(1)
@@ -74,48 +101,27 @@ const APP: () = {
 
         Line::new(Point::new(8, 16 + 16), Point::new(8 + 16, 16 + 16))
             .into_styled(style)
-            .into_iter().draw(&mut disp);
+            .into_iter().draw(disp);
 
         Line::new(Point::new(8, 16 + 16), Point::new(8 + 8, 16))
             .into_styled(style)
-            .into_iter().draw(&mut disp);
+            .into_iter().draw(disp);
 
         Line::new(Point::new(8 + 16, 16 + 16), Point::new(8 + 8, 16))
             .into_styled(style)
-            .into_iter().draw(&mut disp);
+            .into_iter().draw(disp);
 
         Rect::new(Point::new(48, 16), Point::new(48 + 16, 16 + 16))
             .into_styled(style)
-            .into_iter().draw(&mut disp);
+            .into_iter().draw(disp);
 
 
         Circle::new(Point::new(96, 16 + 8), 8)
             .into_styled(style)
-            .into_iter().draw(&mut disp);
+            .into_iter().draw(disp);
 
         disp.flush().unwrap();
 
-        // Safe access to local `static mut` variable
-        let _x: &'static mut u32 = X;
-        cx.spawn.draw_things().unwrap();
-        hprintln!("init").unwrap();
-
-    }
-
-    // Optional.
-    //
-    // https://rtfm.rs/0.5/book/en/by-example/app.html#idle
-    // > When no idle function is declared, the runtime sets the SLEEPONEXIT bit and then
-    // > sends the microcontroller to sleep after running init.
-//    #[idle]
-//    fn idle(_cx: idle::Context) -> ! {
-//        loop {
-//            cortex_m::asm::wfi();
-//        }
-//    }
-
-    #[task(priority = 2)]
-    fn draw_things(_cx: draw_things::Context) {
         hprintln!("draw_things!").unwrap();
     }
 
