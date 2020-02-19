@@ -5,6 +5,8 @@
 #![no_main]
 #![no_std]
 
+
+use cortex_m_rt::{exception, ExceptionFrame};
 use cortex_m_semihosting::{hprintln};
 use panic_semihosting as _;
 use embedded_graphics::primitives::{Circle, Line, Rectangle as Rect};
@@ -20,13 +22,12 @@ use ssd1306::Builder;
 
 #[rtfm::app(device = stm32f3xx_hal::stm32, peripherals = true)]
 const APP: () = {
-    #[init]
+    #[init(spawn =[draw_things])]
     fn init(cx: init::Context) {
         static mut X: u32 = 0;
 
         // Cortex-M peripherals
         let cp: cortex_m::Peripherals = cx.core;
-
         // Device specific peripherals
         let dp: hal::stm32::Peripherals = cx.device;
 
@@ -96,7 +97,7 @@ const APP: () = {
 
         // Safe access to local `static mut` variable
         let _x: &'static mut u32 = X;
-
+        cx.spawn.draw_things().unwrap();
         hprintln!("init").unwrap();
 
     }
@@ -106,10 +107,25 @@ const APP: () = {
     // https://rtfm.rs/0.5/book/en/by-example/app.html#idle
     // > When no idle function is declared, the runtime sets the SLEEPONEXIT bit and then
     // > sends the microcontroller to sleep after running init.
-    #[idle]
-    fn idle(_cx: idle::Context) -> ! {
-        loop {
-            cortex_m::asm::wfi();
-        }
+//    #[idle]
+//    fn idle(_cx: idle::Context) -> ! {
+//        loop {
+//            cortex_m::asm::wfi();
+//        }
+//    }
+
+    #[task(priority = 2)]
+    fn draw_things(_cx: draw_things::Context) {
+        hprintln!("draw_things!").unwrap();
+    }
+
+    // Interrupt handlers used to dispatch software tasks
+    extern "C" {
+        fn TIM4();
     }
 };
+
+#[exception]
+fn HardFault(ef: &ExceptionFrame) -> ! {
+    panic!("{:#?}", ef);
+}

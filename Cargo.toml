@@ -13,9 +13,12 @@ panic-halt = "0.2.0"
 cortex-m-rtfm = "0.5.1"
 panic-semihosting = "0.5.3"
 ssd1306 = "0.3.0-alpha.4"
-# stm32f3xx-hal = { git = "https://github.com/stm32-rs/stm32f3xx-hal.git", features=["stm32f303"] }
-stm32f3xx-hal = { path = "../../build/stm32f3xx-hal", features=["stm32f303"] }
+# stm32f3xx-hal = { git = "https://github.com/stm32-rs/stm32f3xx-hal.git", features=["stm32f303","rt"] }
+stm32f3xx-hal = { path = "../../build/stm32f3xx-hal", features=["stm32f303","rt"] }
 embedded-graphics = "0.6.0-alpha.3"
+# stm32f3 = {version = "0.10.0", features = ["stm32f303", "rt"]}
+# stm32f30x-hal = "0.2.0"
+# stm32f30x = {version = "0.7.1", features = ["rt"]}
 
 # Uncomment for the panic example.
 # panic-itm = "0.4.1"
